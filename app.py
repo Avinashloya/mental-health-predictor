@@ -48,7 +48,7 @@ def index():
 
     if request.method == "POST":
         f = {k: float(request.form[k]) for k in features}
-        X_vec = np.array([f[c] for c in features]).reshape(1, -1)
+        X_vec = pd.DataFrame([f], columns=features)
 
         # Stress prediction
         stress_pred = round(regressor.predict(X_vec)[0], 2)
