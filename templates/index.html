@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="AI-powered mental health risk predictor for college students. Predicts stress levels, anxiety, depression, and risk category using machine learning.">
+  <meta name="keywords" content="mental health, stress prediction, machine learning, college students, well-being">
+  <title>College Mental Health Predictor — AI-Powered Insights</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+  <div class="page-wrapper">
+
+    <!-- ── Hero ──────────────────────────────────────────────────── -->
+    <header class="hero">
+      <div class="hero-badge">
+        <span class="dot"></span>
+        ML-Powered Analysis
+      </div>
+      <h1>College Mental Health Predictor</h1>
+      <p>Enter your daily activity metrics below. Our machine learning model will predict your stress level, mental health risk, and provide personalized insights.</p>
+    </header>
+
+    <!-- ── Input Form ────────────────────────────────────────────── -->
+    <div class="glass-card">
+      <div class="section-title">
+        <span class="icon blue">📋</span>
+        Your Daily Metrics
+      </div>
+
+      <form method="POST" id="prediction-form">
+        <div class="form-grid">
+
+          <div class="form-group">
+            <label>Daily Activity Pattern <span class="hint">(1–10, 5 = balanced)</span></label>
+            <input type="number" name="Daily_Activity_Pattern" step="0.01" min="1" max="10" placeholder="e.g., 5" required id="input-activity">
+          </div>
+
+          <div class="form-group">
+            <label>Study Hours <span class="hint">(avg per day)</span></label>
+            <input type="number" name="Study_Hours" step="0.1" min="0" max="24" placeholder="e.g., 6" required id="input-study">
+          </div>
+
+          <div class="form-group">
+            <label>Sleep Schedule <span class="hint">(hours per night)</span></label>
+            <input type="number" name="Sleep_Schedules" step="0.1" min="0" max="24" placeholder="e.g., 7" required id="input-sleep">
+          </div>
+
+          <div class="form-group">
+            <label>Class Attendance <span class="hint">(% attended)</span></label>
+            <input type="number" name="Class_Attendance" step="0.1" min="0" max="100" placeholder="e.g., 85" required id="input-attendance">
+          </div>
+
+          <div class="form-group">
+            <label>Heart Rate <span class="hint">(bpm)</span></label>
+            <input type="number" name="Heart_Rate" step="1" min="40" max="200" placeholder="e.g., 75" required id="input-heartrate">
+          </div>
+
+          <div class="form-group">
+            <label>Sleep Quality <span class="hint">(1–10, 10 = excellent)</span></label>
+            <input type="number" name="Sleep_Quality" step="1" min="1" max="10" placeholder="e.g., 7" required id="input-sleepquality">
+          </div>
+
+          <div class="form-group">
+            <label>Step Count <span class="hint">(daily average)</span></label>
+            <input type="number" name="Step_Count" step="1" min="0" placeholder="e.g., 5000" required id="input-steps">
+          </div>
+
+          <div class="form-group">
+            <label>Messaging Frequency <span class="hint">(msgs/day)</span></label>
+            <input type="number" name="Messaging_Frequency" step="1" min="0" placeholder="e.g., 50" required id="input-messaging">
+          </div>
+
+          <div class="form-group">
+            <label>Social Media Activity <span class="hint">(0–10, 10 = very high)</span></label>
+            <input type="number" name="Social_Media_Activity" step="0.1" min="0" max="10" placeholder="e.g., 6" required id="input-socialmedia">
+          </div>
+
+          <div class="form-group">
+            <label>Club Event Participation <span class="hint">(events/month)</span></label>
+            <input type="number" name="Club_Event_Participation" step="1" min="0" placeholder="e.g., 2" required id="input-clubs">
+          </div>
+
+          <button type="submit" class="btn-submit" id="btn-predict">
+            ✨ Analyze &amp; Predict
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- ── Results (shown only after POST) ───────────────────────── -->
+    {% if stress is not none %}
+    <div class="results-section">
+
+      <!-- Metric Cards -->
+      <div class="metrics-grid">
+        <div class="metric-card stress animate-in">
+          <div class="metric-label">Stress Level</div>
+          <div class="metric-value blue">{{ stress }}</div>
+          <div class="metric-unit">out of 100</div>
+        </div>
+
+        <div class="metric-card risk animate-in">
+          <div class="metric-label">Risk Category</div>
+          <div class="metric-value purple">
+            <span class="risk-badge {{ risk|lower }}">{{ risk }}</span>
+          </div>
+          <div class="metric-unit">classification</div>
+        </div>
+
+        <div class="metric-card anxiety animate-in">
+          <div class="metric-label">Anxiety</div>
+          <div class="metric-value amber">{{ anxiety }}</div>
+          <div class="metric-unit">proxy score</div>
+        </div>
+
+        <div class="metric-card depress animate-in">
+          <div class="metric-label">Depression</div>
+          <div class="metric-value rose">{{ depression }}</div>
+          <div class="metric-unit">proxy score</div>
+        </div>
+      </div>
+
+      <!-- Chart -->
+      <div class="glass-card chart-wrapper animate-in">
+        <div class="section-title">
+          <span class="icon purple">📊</span>
+          Score Visualization
+        </div>
+        <canvas id="resultsChart"></canvas>
+      </div>
+
+      <script>
+        const ctx = document.getElementById('resultsChart').getContext('2d');
+
+        // Gradient fills
+        const gradBlue   = ctx.createLinearGradient(0, 0, 0, 280);
+        gradBlue.addColorStop(0, 'rgba(59,130,246,0.8)');
+        gradBlue.addColorStop(1, 'rgba(59,130,246,0.15)');
+
+        const gradAmber  = ctx.createLinearGradient(0, 0, 0, 280);
+        gradAmber.addColorStop(0, 'rgba(245,158,11,0.8)');
+        gradAmber.addColorStop(1, 'rgba(245,158,11,0.15)');
+
+        const gradRose   = ctx.createLinearGradient(0, 0, 0, 280);
+        gradRose.addColorStop(0, 'rgba(244,63,94,0.8)');
+        gradRose.addColorStop(1, 'rgba(244,63,94,0.15)');
+
+        new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: ['Stress', 'Anxiety', 'Depression'],
+            datasets: [{
+              label: 'Score',
+              data: [{{ stress }}, {{ anxiety }}, {{ depression }}],
+              backgroundColor: [gradBlue, gradAmber, gradRose],
+              borderColor: ['#3b82f6', '#f59e0b', '#f43f5e'],
+              borderWidth: 2,
+              borderRadius: 8,
+              borderSkipped: false,
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: 'rgba(17,24,39,0.95)',
+                titleColor: '#f1f5f9',
+                bodyColor: '#94a3b8',
+                borderColor: 'rgba(255,255,255,0.1)',
+                borderWidth: 1,
+                cornerRadius: 8,
+                padding: 12,
+              }
+            },
+            scales: {
+              x: {
+                ticks: { color: '#94a3b8', font: { family: 'Inter', weight: '600' } },
+                grid: { display: false },
+                border: { display: false },
+              },
+              y: {
+                beginAtZero: true,
+                max: 100,
+                ticks: { color: '#64748b', font: { family: 'Inter' } },
+                grid: { color: 'rgba(255,255,255,0.04)' },
+                border: { display: false },
+              }
+            }
+          }
+        });
+      </script>
+
+      <!-- Insights -->
+      <div class="insights-grid">
+        {% if causes %}
+        <div class="insight-card causes animate-in">
+          <h3><span class="icon amber" style="width:28px;height:28px;font-size:14px;border-radius:8px;">⚠️</span> Possible Causes</h3>
+          <ul>
+            {% for c in causes %}
+              <li>{{ c }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+
+        <div class="insight-card precautions animate-in">
+          <h3><span class="icon emerald" style="width:28px;height:28px;font-size:14px;border-radius:8px;">🛡️</span> Recommended Actions</h3>
+          <ul>
+            {% for p in precautions %}
+              <li>{{ p }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+
+      <!-- Disclaimer -->
+      <div class="disclaimer animate-in">
+        <span class="info-icon">ℹ️</span>
+        <p>These insights are generated by a machine learning model for informational purposes only and do not constitute medical advice. If you are concerned about your mental health, please reach out to a qualified professional or your campus counseling center.</p>
+      </div>
+
+    </div>
+    {% endif %}
+
+    <!-- ── Footer ────────────────────────────────────────────────── -->
+    <footer class="footer">
+      <p>Built with 🧠 Machine Learning &amp; ❤️ Flask &bull; College Mental Health Predictor</p>
+    </footer>
+
+  </div>
+
+</body>
+</html>
